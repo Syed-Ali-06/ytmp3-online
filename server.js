@@ -1,25 +1,19 @@
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
-import { fileURLToPath } from 'url';
 import fs from 'fs';
 import crypto from 'crypto';
 import { spawn } from 'child_process';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-const downloadsDir = path.join(__dirname, 'downloads');
+// Folder for MP3 downloads
+const downloadsDir = path.join(process.cwd(), 'downloads');
 if (!fs.existsSync(downloadsDir)) fs.mkdirSync(downloadsDir);
 
-// Serve frontend
-app.use(express.static(path.join(__dirname, 'public')));
-
-// Serve downloads
+// Serve MP3s
 app.use('/downloads', express.static(downloadsDir));
 
 // SSE for progress
@@ -41,7 +35,7 @@ function broadcastProgress(message) {
   clients.forEach(client => client.write(`data: ${message}\n\n`));
 }
 
-// Conversion endpoint
+// YouTube → MP3 endpoint
 app.post('/download', (req, res) => {
   const { url } = req.body;
   if (!url) return res.status(400).json({ error: 'No URL provided' });
@@ -82,10 +76,6 @@ app.post('/download', (req, res) => {
   });
 });
 
-// Fallback for unknown routes
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-
+// Start server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
