@@ -4,7 +4,7 @@
   "type": "module",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "DEBUG_URL= node server.js"
   },
   "dependencies": {
     "@borodutch-labs/yt-dlp-exec": "^2.0.0",
