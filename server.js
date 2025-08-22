@@ -4,7 +4,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
 import crypto from 'crypto';
-import ytdlp from '@borodutch-labs/yt-dlp-exec';
+import { spawn } from 'child_process';
 
 const app = express();
 app.use(cors());
@@ -16,11 +16,9 @@ const __dirname = path.dirname(__filename);
 const downloadsDir = path.join(__dirname, 'downloads');
 if (!fs.existsSync(downloadsDir)) fs.mkdirSync(downloadsDir);
 
-app.get('/', (req, res) => {
-  res.send('✅ YTMP3 backend is running!');
-});
+app.use('/downloads', express.static(downloadsDir));
 
-// SSE endpoint for progress
+// SSE for progress
 let clients = [];
 app.get('/progress', (req, res) => {
   res.setHeader('Content-Type', 'text/event-stream');
@@ -35,46 +33,50 @@ app.get('/progress', (req, res) => {
   });
 });
 
-// Helper to broadcast progress
 function broadcastProgress(message) {
   clients.forEach(client => client.write(`data: ${message}\n\n`));
 }
 
-app.post('/download', async (req, res) => {
+app.post('/download', (req, res) => {
   const { url } = req.body;
   if (!url) return res.status(400).json({ error: 'No URL provided' });
 
   const uniqueName = `yt_${Date.now()}_${crypto.randomBytes(4).toString('hex')}.mp3`;
   const output = path.join(downloadsDir, uniqueName);
 
-  console.log(`🚀 Starting download for ${url}`);
-  broadcastProgress("Download started...");
+  broadcastProgress('Download started...');
 
-  try {
-    // yt-dlp with progress logging
-    await ytdlp(url, {
-      extractAudio: true,
-      audioFormat: 'mp3',
-      output: output,
-      progress: true,
-      onProgress: (info) => {
-        if (info.percent) {
-          broadcastProgress(`Progress: ${Math.round(info.percent)}%`);
-        }
-      }
-    });
+  // Use child process to run yt-dlp directly
+  const ytdlp = spawn('yt-dlp', [
+    '-x',
+    '--audio-format', 'mp3',
+    '-o', output,
+    url
+  ]);
 
-    console.log(`✅ Finished download: ${uniqueName}`);
-    broadcastProgress("Conversion complete!");
-    res.json({ file: `/downloads/${uniqueName}` });
-  } catch (err) {
-    console.error('yt-dlp error:', err);
-    broadcastProgress("❌ Conversion failed!");
-    res.status(500).json({ error: 'Conversion failed', details: err.message });
-  }
+  ytdlp.stdout.on('data', (data) => {
+    const str = data.toString();
+    const match = str.match(/(\d{1,3}\.\d)%/); // extract percentage from yt-dlp stdout
+    if (match) {
+      broadcastProgress(`Progress: ${match[1]}%`);
+    }
+    console.log(str);
+  });
+
+  ytdlp.stderr.on('data', (data) => {
+    console.error(data.toString());
+  });
+
+  ytdlp.on('close', (code) => {
+    if (fs.existsSync(output)) {
+      broadcastProgress('✅ Conversion complete!');
+      res.json({ file: `/downloads/${uniqueName}` });
+    } else {
+      broadcastProgress('❌ Conversion failed!');
+      res.status(500).json({ error: 'Conversion failed' });
+    }
+  });
 });
-
-app.use('/downloads', express.static(downloadsDir));
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
