@@ -20,6 +20,23 @@ app.get('/', (req, res) => {
   res.send('✅ YTMP3 backend is running!');
 });
 
+// SSE endpoint for progress
+app.get('/progress', (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+
+  const interval = setInterval(() => {
+    res.write(`data: still working...\n\n`);
+  }, 2000);
+
+  req.on('close', () => {
+    clearInterval(interval);
+  });
+});
+
+// POST endpoint for conversion
 app.post('/download', async (req, res) => {
   const { url } = req.body;
   if (!url) return res.status(400).json({ error: 'No URL provided' });
@@ -34,7 +51,7 @@ app.post('/download', async (req, res) => {
       extractAudio: true,
       audioFormat: 'mp3',
       output: output,
-      progress: true  // This will print progress to backend logs
+      progress: true // logs progress in backend
     });
 
     console.log(`✅ Finished download: ${uniqueName}`);
@@ -49,4 +66,3 @@ app.use('/downloads', express.static(downloadsDir));
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
-
