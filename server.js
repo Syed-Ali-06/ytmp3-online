@@ -4,19 +4,29 @@ import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
 import { spawn } from 'child_process';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Folder for MP3 downloads
-const downloadsDir = path.join(process.cwd(), 'downloads');
+// Directories
+const downloadsDir = path.join(__dirname, 'downloads');
+const publicDir = path.join(__dirname, 'public');
+
 if (!fs.existsSync(downloadsDir)) fs.mkdirSync(downloadsDir);
+if (!fs.existsSync(publicDir)) fs.mkdirSync(publicDir);
+
+// Serve frontend
+app.use(express.static(publicDir));
 
 // Serve MP3s
 app.use('/downloads', express.static(downloadsDir));
 
-// SSE for progress
+// SSE progress
 let clients = [];
 app.get('/progress', (req, res) => {
   res.setHeader('Content-Type', 'text/event-stream');
@@ -35,7 +45,7 @@ function broadcastProgress(message) {
   clients.forEach(client => client.write(`data: ${message}\n\n`));
 }
 
-// YouTube → MP3 endpoint
+// YouTube → MP3
 app.post('/download', (req, res) => {
   const { url } = req.body;
   if (!url) return res.status(400).json({ error: 'No URL provided' });
@@ -55,9 +65,7 @@ app.post('/download', (req, res) => {
   ytdlp.stdout.on('data', (data) => {
     const str = data.toString();
     const match = str.match(/(\d{1,3}\.\d)%/);
-    if (match) {
-      broadcastProgress(`Progress: ${Math.round(match[1])}%`);
-    }
+    if (match) broadcastProgress(`Progress: ${Math.round(match[1])}%`);
     console.log(str);
   });
 
@@ -74,6 +82,11 @@ app.post('/download', (req, res) => {
       res.status(500).json({ error: 'Conversion failed' });
     }
   });
+});
+
+// Fallback route for all other URLs
+app.get('*', (req, res) => {
+  res.sendFile(path.join(publicDir, 'index.html'));
 });
 
 // Start server
