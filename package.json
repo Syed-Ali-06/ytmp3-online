@@ -1,8 +1,9 @@
 {
   "name": "ytmp3-online",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "YouTube to MP3 converter backend",
+  "type": "module",
+  "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
