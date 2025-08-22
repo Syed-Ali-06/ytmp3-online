@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>YouTube to MP3</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen flex items-center justify-center">
+  <div class="bg-gray-800 p-8 rounded-2xl shadow-lg w-full max-w-lg space-y-6">
+    <h1 class="text-2xl font-bold text-center">YouTube to MP3 Online</h1>
+    <input id="ytUrl" type="text" placeholder="Enter YouTube link"
+      class="w-full p-3 rounded-xl bg-gray-700 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-400" />
+    <button id="convertBtn"
+      class="w-full bg-cyan-500 hover:bg-cyan-600 text-white font-semibold py-3 rounded-xl transition">
+      Convert to MP3
+    </button>
+    <div id="status" class="text-center text-sm text-gray-400"></div>
+    <div id="download" class="text-center mt-4"></div>
+  </div>
+
+  <script>
+    const statusEl = document.getElementById("status");
+    const downloadEl = document.getElementById("download");
+    const convertBtn = document.getElementById("convertBtn");
+
+    async function convertVideo() {
+      const url = document.getElementById("ytUrl").value.trim();
+      if (!url) {
+        statusEl.textContent = "⚠️ Please enter a YouTube link.";
+        return;
+      }
+
+      statusEl.textContent = "⏳ Starting conversion...";
+      downloadEl.innerHTML = "";
+      convertBtn.disabled = true;
+
+      // Start listening to backend SSE for progress
+      const evtSource = new EventSource("https://ytmp3-online-1.onrender.com/progress");
+      evtSource.onmessage = (event) => {
+        statusEl.textContent = "⏳ Converting... " + event.data;
+      };
+
+      try {
+        const res = await fetch("https://ytmp3-online-1.onrender.com/download", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url })
+        });
+
+        evtSource.close(); // stop SSE after conversion finishes
+
+        if (!res.ok) throw new Error("Server error");
+
+        const data = await res.json();
+        statusEl.textContent = "✅ Conversion complete!";
+        downloadEl.innerHTML = `<a href="https://ytmp3-online-1.onrender.com${data.file}" class="text-cyan-400 underline" target="_blank">Download MP3</a>`;
+      } catch (err) {
+        evtSource.close();
+        statusEl.textContent = "❌ Error: " + err.message;
+      } finally {
+        convertBtn.disabled = false;
+      }
+    }
+
+    convertBtn.addEventListener("click", convertVideo);
+  </script>
+</body>
+</html>
