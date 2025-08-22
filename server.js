@@ -21,22 +21,25 @@ app.get('/', (req, res) => {
 });
 
 // SSE endpoint for progress
+let clients = [];
 app.get('/progress', (req, res) => {
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
   res.flushHeaders();
 
-  const interval = setInterval(() => {
-    res.write(`data: still working...\n\n`);
-  }, 2000);
+  clients.push(res);
 
   req.on('close', () => {
-    clearInterval(interval);
+    clients = clients.filter(client => client !== res);
   });
 });
 
-// POST endpoint for conversion
+// Helper to broadcast progress
+function broadcastProgress(message) {
+  clients.forEach(client => client.write(`data: ${message}\n\n`));
+}
+
 app.post('/download', async (req, res) => {
   const { url } = req.body;
   if (!url) return res.status(400).json({ error: 'No URL provided' });
@@ -45,19 +48,28 @@ app.post('/download', async (req, res) => {
   const output = path.join(downloadsDir, uniqueName);
 
   console.log(`🚀 Starting download for ${url}`);
+  broadcastProgress("Download started...");
 
   try {
+    // yt-dlp with progress logging
     await ytdlp(url, {
       extractAudio: true,
       audioFormat: 'mp3',
       output: output,
-      progress: true // logs progress in backend
+      progress: true,
+      onProgress: (info) => {
+        if (info.percent) {
+          broadcastProgress(`Progress: ${Math.round(info.percent)}%`);
+        }
+      }
     });
 
     console.log(`✅ Finished download: ${uniqueName}`);
+    broadcastProgress("Conversion complete!");
     res.json({ file: `/downloads/${uniqueName}` });
   } catch (err) {
     console.error('yt-dlp error:', err);
+    broadcastProgress("❌ Conversion failed!");
     res.status(500).json({ error: 'Conversion failed', details: err.message });
   }
 });
