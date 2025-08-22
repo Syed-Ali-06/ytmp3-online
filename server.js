@@ -13,20 +13,20 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Directories
+// Folders
 const downloadsDir = path.join(__dirname, 'downloads');
-const publicDir = path.join(__dirname, 'public');
+const publicDir = path.join(__dirname, 'public'); // optional if you serve frontend here
 
 if (!fs.existsSync(downloadsDir)) fs.mkdirSync(downloadsDir);
 if (!fs.existsSync(publicDir)) fs.mkdirSync(publicDir);
 
-// Serve frontend
+// Serve frontend (optional)
 app.use(express.static(publicDir));
 
-// Serve MP3s
+// Serve MP3 files
 app.use('/downloads', express.static(downloadsDir));
 
-// SSE progress
+// SSE for progress
 let clients = [];
 app.get('/progress', (req, res) => {
   res.setHeader('Content-Type', 'text/event-stream');
@@ -45,7 +45,7 @@ function broadcastProgress(message) {
   clients.forEach(client => client.write(`data: ${message}\n\n`));
 }
 
-// YouTube → MP3
+// YouTube → MP3 endpoint
 app.post('/download', (req, res) => {
   const { url } = req.body;
   if (!url) return res.status(400).json({ error: 'No URL provided' });
@@ -73,7 +73,7 @@ app.post('/download', (req, res) => {
     console.error(data.toString());
   });
 
-  ytdlp.on('close', (code) => {
+  ytdlp.on('close', () => {
     if (fs.existsSync(output)) {
       broadcastProgress('✅ Conversion complete!');
       res.json({ file: `/downloads/${uniqueName}` });
@@ -84,7 +84,7 @@ app.post('/download', (req, res) => {
   });
 });
 
-// Fallback route for all other URLs
+// Fallback route for frontend (optional)
 app.get('*', (req, res) => {
   res.sendFile(path.join(publicDir, 'index.html'));
 });
