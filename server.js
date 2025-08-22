@@ -27,13 +27,17 @@ app.post('/download', async (req, res) => {
   const uniqueName = `yt_${Date.now()}_${crypto.randomBytes(4).toString('hex')}.mp3`;
   const output = path.join(downloadsDir, uniqueName);
 
+  console.log(`🚀 Starting download for ${url}`);
+
   try {
     await ytdlp(url, {
       extractAudio: true,
       audioFormat: 'mp3',
-      output: output
+      output: output,
+      progress: true  // This will print progress to backend logs
     });
 
+    console.log(`✅ Finished download: ${uniqueName}`);
     res.json({ file: `/downloads/${uniqueName}` });
   } catch (err) {
     console.error('yt-dlp error:', err);
@@ -45,3 +49,4 @@ app.use('/downloads', express.static(downloadsDir));
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
+
