@@ -17,6 +17,11 @@ const __dirname = path.dirname(__filename);
 const downloadsDir = path.join(__dirname, "downloads");
 if (!fs.existsSync(downloadsDir)) fs.mkdirSync(downloadsDir);
 
+// Root route for testing
+app.get("/", (req, res) => {
+  res.send("✅ YTMP3 backend is running!");
+});
+
 // Endpoint to convert YouTube to MP3
 app.post("/download", (req, res) => {
   const { url } = req.body;
