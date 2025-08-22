@@ -1,17 +1,14 @@
 {
   "name": "ytmp3-online",
   "version": "1.0.0",
-  "description": "YouTube to MP3 converter backend",
   "type": "module",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "dependencies": {
     "cors": "^2.8.5",
-    "express": "^5.1.0"
+    "express": "^5.1.0",
+    "yt-dlp-exec": "^0.14.0"
   }
 }
