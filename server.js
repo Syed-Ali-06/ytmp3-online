@@ -6,16 +6,20 @@ import fs from 'fs';
 import crypto from 'crypto';
 import { spawn } from 'child_process';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
 const downloadsDir = path.join(__dirname, 'downloads');
 if (!fs.existsSync(downloadsDir)) fs.mkdirSync(downloadsDir);
 
+// Serve frontend
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Serve downloads
 app.use('/downloads', express.static(downloadsDir));
 
 // SSE for progress
@@ -37,6 +41,7 @@ function broadcastProgress(message) {
   clients.forEach(client => client.write(`data: ${message}\n\n`));
 }
 
+// Conversion endpoint
 app.post('/download', (req, res) => {
   const { url } = req.body;
   if (!url) return res.status(400).json({ error: 'No URL provided' });
@@ -46,7 +51,6 @@ app.post('/download', (req, res) => {
 
   broadcastProgress('Download started...');
 
-  // Use child process to run yt-dlp directly
   const ytdlp = spawn('yt-dlp', [
     '-x',
     '--audio-format', 'mp3',
@@ -56,9 +60,9 @@ app.post('/download', (req, res) => {
 
   ytdlp.stdout.on('data', (data) => {
     const str = data.toString();
-    const match = str.match(/(\d{1,3}\.\d)%/); // extract percentage from yt-dlp stdout
+    const match = str.match(/(\d{1,3}\.\d)%/);
     if (match) {
-      broadcastProgress(`Progress: ${match[1]}%`);
+      broadcastProgress(`Progress: ${Math.round(match[1])}%`);
     }
     console.log(str);
   });
@@ -76,6 +80,11 @@ app.post('/download', (req, res) => {
       res.status(500).json({ error: 'Conversion failed' });
     }
   });
+});
+
+// Fallback for unknown routes
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 const PORT = process.env.PORT || 5000;
