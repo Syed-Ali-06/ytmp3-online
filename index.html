@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>YouTube to MP3 Online</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen flex items-center justify-center">
+  <div class="bg-gray-800 p-8 rounded-2xl shadow-lg w-full max-w-lg space-y-6">
+    <h1 class="text-2xl font-bold text-center">YouTube to MP3 Online</h1>
+    <input id="ytUrl" type="text" placeholder="Enter YouTube link"
+      class="w-full p-3 rounded-xl bg-gray-700 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-400" />
+    <button onclick="convertVideo()"
+      class="w-full bg-cyan-500 hover:bg-cyan-600 text-white font-semibold py-3 rounded-xl transition">
+      Convert to MP3
+    </button>
+    <div id="status" class="text-center text-sm text-gray-400"></div>
+    <div id="download" class="text-center mt-4"></div>
+  </div>
+
+  <script>
+    async function convertVideo() {
+      const url = document.getElementById("ytUrl").value.trim();
+      const statusEl = document.getElementById("status");
+      const downloadEl = document.getElementById("download");
+
+      if (!url) {
+        statusEl.textContent = "⚠️ Please enter a YouTube link.";
+        return;
+      }
+
+      statusEl.textContent = "⏳ Converting...";
+      downloadEl.innerHTML = "";
+
+      try {
+        // Change this URL to your hosted Railway backend later
+        const res = await fetch("http://localhost:5000/download", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url })
+        });
+
+        if (!res.ok) throw new Error("Server error");
+
+        const data = await res.json();
+        statusEl.textContent = "✅ Conversion complete!";
+        downloadEl.innerHTML = `<a href="${data.file}" class="text-cyan-400 underline" target="_blank">Download MP3</a>`;
+      } catch (err) {
+        statusEl.textContent = "❌ Error: " + err.message;
+      }
+    }
+  </script>
+</body>
+</html>
