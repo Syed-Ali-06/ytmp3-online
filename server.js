@@ -15,16 +15,7 @@ app.use(express.json());
 
 // Folders
 const downloadsDir = path.join(__dirname, 'downloads');
-const publicDir = path.join(__dirname, 'public'); // optional if you serve frontend here
-
 if (!fs.existsSync(downloadsDir)) fs.mkdirSync(downloadsDir);
-if (!fs.existsSync(publicDir)) fs.mkdirSync(publicDir);
-
-// Serve frontend (optional)
-app.use(express.static(publicDir));
-
-// Serve MP3 files
-app.use('/downloads', express.static(downloadsDir));
 
 // SSE for progress
 let clients = [];
@@ -35,7 +26,6 @@ app.get('/progress', (req, res) => {
   res.flushHeaders();
 
   clients.push(res);
-
   req.on('close', () => {
     clients = clients.filter(client => client !== res);
   });
@@ -84,11 +74,8 @@ app.post('/download', (req, res) => {
   });
 });
 
-// Fallback route for frontend (optional)
-app.get('*', (req, res) => {
-  res.sendFile(path.join(publicDir, 'index.html'));
-});
+// Serve downloaded MP3s
+app.use('/downloads', express.static(downloadsDir));
 
-// Start server
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
+const PORT = 10000;
+app.listen(PORT, () => console.log(`✅ Backend running on port ${PORT}`));
